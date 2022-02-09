@@ -28,31 +28,32 @@ inline size_t getNumberOfTuplesInRelation(Relation const &t) { return t.size(); 
  * large1.a = large2.a and large2.a = small.a and large1.b + large2.b + small.b
  * > 9;
  */
-class DBMSImplementationForMarks
-{ // you may edit anything inside this class
-  // but nothing else
-  std::vector<Tuple const *> large1Tuples, large2Tuples;
-  std::vector<Tuple const *> smallHashTable;
-  Relation const *small; // TODO: remove after hash table implemented
+class DBMSImplementationForMarks {  // you may edit anything inside this class
+    // but nothing else
+    std::vector<Tuple const *> large1Tuples, large2Tuples;
+    std::vector<Tuple const *> smallHashTable;
+    Relation const *small;  // TODO: remove after hash table implemented
 
-public:
-  void loadData(Relation const *large1,
-                Relation const *large2, // NOLINT(bugprone-easily-swappable-parameters)
-                Relation const *small); // NOLINT(bugprone-easily-swappable-parameters)
+   public:
+    void loadData(Relation const *large1,
+                  Relation const *large2,  // NOLINT(bugprone-easily-swappable-parameters)
+                  Relation const *small);  // NOLINT(bugprone-easily-swappable-parameters)
 
-  long runQuery(long threshold = 9);
+    long runQuery(long threshold = 9);
 
-private:
-  // TODO: should we define these outside the class as helpers just like quickSort?
-  void buildHashTable(std::vector<Tuple const *> &hashTable, Relation const &relation);
-  std::vector<Tuple const *> searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue &key);
+   private:
+    static int compareStrings(const char *s1, const char *s2);
+    static int compareAttributeValues(const void *p1, const void *p2);
+    static int compareTuples(const void *p1, const void *p2);
+
+    void buildHashTable(std::vector<Tuple const *> &hashTable, Relation const &relation);
+    std::vector<Tuple const *> searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue &key);
 };
 
-class DBMSImplementationForCompetition : public DBMSImplementationForMarks
-{
-public:
-  static constexpr char const *teamName =
-      nullptr; // set this to your team name if you mean to compete
+class DBMSImplementationForCompetition : public DBMSImplementationForMarks {
+   public:
+    static constexpr char const *teamName =
+        nullptr;  // set this to your team name if you mean to compete
 };
 
 #endif /* ADVANCEDDB2022COURSEWORK1_H */
