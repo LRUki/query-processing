@@ -6,9 +6,9 @@
 
 void printTuple(Tuple const &tuple);
 void printRelation(const Relation &relation);
-void quickSort(std::vector<Tuple const *> &ts);
 int strCmp(const char *s1, const char *s2);
 int compareVariants(const void *p1, const void *p2);
+int compareTuple(const void *p1, const void *p2);
 
 void DBMSImplementationForMarks::loadData(Relation const *large1,
 					  Relation const *large2, // NOLINT(bugprone-easily-swappable-parameters)
@@ -21,11 +21,13 @@ void DBMSImplementationForMarks::loadData(Relation const *large1,
 	large1Tuples.reserve(large1Size);
 	large2Tuples.reserve(large2Size);
 	// initalize `large1Tuples` and `large2Tuples` by assign pointers to the tuple
+
 	for (int i = 0; i < MAX(large1Size, large2Size); i++)
 	{
 		if (i < large1Size)
 		{
 			Tuple const &t = large1->at(i);
+			Tuple *tt = (Tuple *)&large1->at(i);
 			// filter out nullptr
 			if (getAttributeValueType(t[0]) != 2 || getStringValue(t[0]) != nullptr)
 			{
@@ -42,8 +44,15 @@ void DBMSImplementationForMarks::loadData(Relation const *large1,
 			}
 		}
 	}
-	quickSort(large1Tuples);
-	quickSort(large2Tuples);
+
+	if (large1Tuples.size() > 0)
+	{
+		qsort(&large1Tuples[0], large1Tuples.size(), sizeof(Tuple *), compareTuple);
+	}
+	if (large2Tuples.size() > 0)
+	{
+		qsort(&large2Tuples[0], large2Tuples.size(), sizeof(Tuple *), compareTuple);
+	}
 
 	//**** build hashtable for `small` ****//
 
@@ -80,7 +89,8 @@ long DBMSImplementationForMarks::runQuery(long threshold)
 			l2Idx++;
 			break;
 		default:
-			// TODO: use `searchHashTable` instead
+			// t1 and t2 matches, serach small
+			//  TODO: use `searchHashTable` instead
 			for (Tuple const &t3 : *this->small)
 			{
 				if (compareVariants(&t1[0], &t3[0]) == 0)
@@ -113,8 +123,8 @@ int partition(std::vector<Tuple const *> &ts, int const &left, int const &right)
 // returns <0 if p1 goes before p2, >0 if p2 goes before p1, 0 if equal
 int compareVariants(const void *p1, const void *p2)
 {
-	AttributeValue v1 = *(AttributeValue *)p1;
-	AttributeValue v2 = *(AttributeValue *)p2;
+	AttributeValue &v1 = *(AttributeValue *)p1;
+	AttributeValue &v2 = *(AttributeValue *)p2;
 
 	if (getAttributeValueType(v1) == getAttributeValueType(v2) && getAttributeValueType(v1) != 0)
 	{
@@ -133,58 +143,11 @@ int compareVariants(const void *p1, const void *p2)
 	return (v1 < v2) ? -1 : ((v1 > v2) ? 1 : 0);
 }
 
-/**
- * @brief sorts the vector of `Tuple*` in place based on the value of `a` in an ascending order.
- * 	  variants are stored in the order of long -> double -> string order
- *
- * @param ts a vector of pointers to `Tuple`
- */
-void quickSort(std::vector<Tuple const *> &ts)
+int compareTuple(const void *p1, const void *p2)
 {
-	if (ts.size() == 0)
-		return;
-
-	std::vector<int> stack;
-	stack.reserve(ts.size());
-
-	stack.emplace_back(0);
-	stack.emplace_back(ts.size() - 1);
-
-	while (stack.size())
-	{
-
-		int r = stack.back();
-		stack.pop_back();
-		int l = stack.back();
-		stack.pop_back();
-
-		// Set pivot element at its correct position
-		// in sorted array
-		int pivotIndex = partition(ts, l, r);
-
-		// If there are elements on left side of pivot,
-		// then push left side to stack
-		if (l < pivotIndex - 1)
-		{
-			stack.emplace_back(l);
-			stack.emplace_back(pivotIndex - 1);
-		}
-
-		// If there are elements on right side of pivot,
-		// then push right side to stack
-		if (pivotIndex + 1 < r)
-		{
-			stack.emplace_back(pivotIndex + 1);
-			stack.emplace_back(r);
-		}
-	}
-}
-
-inline void swap(Tuple *t1, Tuple *t2)
-{
-	Tuple *t = t1;
-	t1 = t2;
-	t2 = t;
+	Tuple *t1 = *(Tuple **)p1;
+	Tuple *t2 = *(Tuple **)p2;
+	return compareVariants(&t1->at(0), &t2->at(0));
 }
 
 /**
@@ -203,34 +166,6 @@ int strCmp(const char *s1, const char *s2)
 		++p1, ++p2;
 
 	return (*p1 > *p2) - (*p2 > *p1);
-}
-
-int partition(std::vector<Tuple const *> &ts, int const &left, int const &right)
-{
-	AttributeValue pivot = ts[right]->at(0);
-	int pivotType = getAttributeValueType(ts[right]->at(0));
-	int i = (left - 1);
-
-	for (int j = left; j < right; j++)
-	{
-		bool shouldSwap = false;
-		if (pivotType == 2 && getAttributeValueType(ts[j]->at(0)) == 2)
-		{
-			shouldSwap = strCmp(getStringValue(ts[j]->at(0)), getStringValue(pivot)) <= 0;
-		}
-		else
-		{
-			shouldSwap = ts[j]->at(0) <= pivot;
-		}
-
-		if (shouldSwap)
-		{
-			i++;
-			swap(ts[i], ts[j]);
-		}
-	}
-	swap(ts[i + 1], ts[right]);
-	return (i + 1);
 }
 
 void printTuple(Tuple const &tuple)
