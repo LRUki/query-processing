@@ -46,8 +46,8 @@ void DBMSImplementationForMarks::loadData(Relation const *large1,
 
 	//**** build hashtable for `small` ****//
 
-	// preallocate memory
-	smallHashTable.reserve(small->size() * 2);
+	// preallocate memory and set to nullptr
+	smallHashTable = std::vector<Tuple const *>(small->size(), nullptr);
 	// build the hashTable
 	buildHashTable(smallHashTable, *small);
 
