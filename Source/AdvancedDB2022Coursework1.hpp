@@ -28,8 +28,7 @@ inline size_t getNumberOfTuplesInRelation(Relation const &t) { return t.size(); 
  * large1.a = large2.a and large2.a = small.a and large1.b + large2.b + small.b
  * > 9;
  */
-class DBMSImplementationForMarks
-{ // you may edit anything inside this class
+class DBMSImplementationForMarks { // you may edit anything inside this class
   // but nothing else
   const Relation *large1, *large2, *small;
   std::vector<const Tuple *> sortedL1Indices, sortedL2Indices;
@@ -47,8 +46,7 @@ private:
   void buildHashTable();
 };
 
-class DBMSImplementationForCompetition : public DBMSImplementationForMarks
-{
+class DBMSImplementationForCompetition : public DBMSImplementationForMarks {
 public:
   static constexpr char const *teamName =
       nullptr; // set this to your team name if you mean to compete
