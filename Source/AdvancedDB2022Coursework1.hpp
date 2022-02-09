@@ -28,11 +28,12 @@ inline size_t getNumberOfTuplesInRelation(Relation const &t) { return t.size(); 
  * large1.a = large2.a and large2.a = small.a and large1.b + large2.b + small.b
  * > 9;
  */
-class DBMSImplementationForMarks { // you may edit anything inside this class
+class DBMSImplementationForMarks
+{ // you may edit anything inside this class
   // but nothing else
-  const Relation *large1, *large2, *small;
-  std::vector<const Tuple *> sortedL1Indices, sortedL2Indices;
-  std::vector<const Tuple *> hashTable;
+  std::vector<Tuple const *> large1Tuples, large2Tuples;
+  std::vector<Tuple const *> smallHashTable;
+  Relation const *small; // TODO: remove after hash table implemented
 
 public:
   void loadData(Relation const *large1,
@@ -42,11 +43,13 @@ public:
   long runQuery(long threshold = 9);
 
 private:
-  void sortLarges();
-  void buildHashTable();
+  // TODO: should we define these outside the class as helpers just like quickSort?
+  void buildHashTable(std::vector<Tuple const *> &hashTable, Relation const &relation);
+  std::vector<Tuple const *> searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue &key);
 };
 
-class DBMSImplementationForCompetition : public DBMSImplementationForMarks {
+class DBMSImplementationForCompetition : public DBMSImplementationForMarks
+{
 public:
   static constexpr char const *teamName =
       nullptr; // set this to your team name if you mean to compete
