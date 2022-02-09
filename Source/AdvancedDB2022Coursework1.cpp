@@ -2,18 +2,19 @@
 #include <iostream>
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define ROUND(x) (int)(x + 0.5)
 
 void printTuple(Tuple const &tuple);
 void printRelation(const Relation &relation);
 void quickSort(std::vector<Tuple const *> &ts);
 int strCmp(const char *s1, const char *s2);
+int compareVariants(const void *p1, const void *p2);
 
 void DBMSImplementationForMarks::loadData(Relation const *large1,
 					  Relation const *large2, // NOLINT(bugprone-easily-swappable-parameters)
 					  Relation const *small)
 {
 	//**** sort large1, large2 by `a` ****//
-
 	int large1Size = getNumberOfTuplesInRelation(*large1);
 	int large2Size = getNumberOfTuplesInRelation(*large2);
 	// preallocate memory
@@ -69,64 +70,30 @@ long DBMSImplementationForMarks::runQuery(long threshold)
 
 		Tuple const &t1 = *large1Tuples[l1Idx];
 		Tuple const &t2 = *large2Tuples[l2Idx];
-		if (getAttributeValueType(t1[0]) == getAttributeValueType(t2[0]) && getAttributeValueType(t1[0]) == 2)
-		{
-			switch (strCmp(getStringValue(t1[0]), getStringValue(t2[0])))
-			{
-			case -1:
-				l1Idx++;
-				break;
-			case 1:
-				l2Idx++;
-				break;
-			default:
-				// TODO: use `searchHashTable` instead
-				for (Tuple const &t3 : *this->small)
-				{
-					if (getAttributeValueType(t3[0]) == 2 && strCmp(getStringValue(t1[0]), getStringValue(t3[0])) == 0)
-					{
-						if (getLongValue(t1[1]) + getLongValue(t2[1]) + getLongValue(t3[1]) > threshold)
-						{
-							sum += getLongValue(t1[2]) * getLongValue(t2[2]) * getLongValue(t3[2]);
-						}
-					}
-				}
-				l1Idx++;
-				l2Idx++;
-				break;
-			}
-		}
-		else
-		{
-			if (t1[0] < t2[0])
-			{
-				l1Idx++;
-			}
-			else if (t1[0] > t2[0])
-			{
-				l2Idx++;
-			}
-			else
-			{
-				// TODO: use `searchHashTable` instead
-				for (Tuple const &t3 : *this->small)
-				{
-					if (getAttributeValueType(t1[0]) == getAttributeValueType(t3[0]))
-					{
 
-						if (getAttributeValueType(t1[0]) == 0 && getLongValue(t1[0]) == getLongValue(t3[0]) ||
-						    getAttributeValueType(t1[0]) == 1 && getDoubleValue(t1[0]) == getDoubleValue(t3[0]))
-						{
-							if (getLongValue(t1[1]) + getLongValue(t2[1]) + getLongValue(t3[1]) > threshold)
-							{
-								sum += getLongValue(t1[2]) * getLongValue(t2[2]) * getLongValue(t3[2]);
-							}
-						}
+		switch (compareVariants(&t1[0], &t2[0]))
+		{
+		case -1:
+			l1Idx++;
+			break;
+		case 1:
+			l2Idx++;
+			break;
+		default:
+			// TODO: use `searchHashTable` instead
+			for (Tuple const &t3 : *this->small)
+			{
+				if (compareVariants(&t1[0], &t3[0]) == 0)
+				{
+					if (getLongValue(t1[1]) + getLongValue(t2[1]) + getLongValue(t3[1]) > threshold)
+					{
+						sum += getLongValue(t1[2]) * getLongValue(t2[2]) * getLongValue(t3[2]);
 					}
 				}
-				l1Idx++;
-				l2Idx++;
 			}
+			l1Idx++;
+			l2Idx++;
+			break;
 		}
 	}
 
@@ -142,6 +109,29 @@ std::vector<Tuple const *> DBMSImplementationForMarks::searchHashTable(std::vect
 inline void swap(Tuple *t1, Tuple *t2);
 int strCmp(const char *s1, const char *s2);
 int partition(std::vector<Tuple const *> &ts, int const &left, int const &right);
+
+// returns <0 if p1 goes before p2, >0 if p2 goes before p1, 0 if equal
+int compareVariants(const void *p1, const void *p2)
+{
+	AttributeValue v1 = *(AttributeValue *)p1;
+	AttributeValue v2 = *(AttributeValue *)p2;
+
+	if (getAttributeValueType(v1) == getAttributeValueType(v2) && getAttributeValueType(v1) != 0)
+	{
+		if (getAttributeValueType(v1) == 1)
+		{
+			// double
+			return ROUND(getDoubleValue(v1)) - ROUND(getDoubleValue(v2));
+		}
+		else
+		{
+			// string
+			return strCmp(getStringValue(v1), getStringValue(v2));
+		}
+	}
+
+	return (v1 < v2) ? -1 : ((v1 > v2) ? 1 : 0);
+}
 
 /**
  * @brief sorts the vector of `Tuple*` in place based on the value of `a` in an ascending order.

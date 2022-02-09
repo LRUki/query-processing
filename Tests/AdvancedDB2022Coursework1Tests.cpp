@@ -189,3 +189,17 @@ TEMPLATE_TEST_CASE("Larger Database with differnt types in the first column",
 
   REQUIRE(instance.runQuery() == 117 + 27 + 63);
 }
+
+TEMPLATE_TEST_CASE("Doubles are rounded to the closest integer", "", DBMSImplementationForMarks,
+                   DBMSImplementationForCompetition)
+{
+  TestType instance;
+  auto [a, b, c] = tuple{
+      Relation{Tuple{9.1, 20L, 3L}},                     //
+      Relation{Tuple{9L, 17L, 3L}, Tuple{9.0, 31L, 5L}}, //
+      Relation{
+          Tuple{9.1, 29L, 4L}, Tuple{9.9, 21L, 100L}, Tuple{9.0, 31L, 6L}}};
+  instance.loadData(&a, &b, &c);
+
+  REQUIRE(instance.runQuery() == 60 + 90);
+}
