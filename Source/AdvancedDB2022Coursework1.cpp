@@ -8,9 +8,10 @@
 void printTuple(Tuple const &tuple);
 void printRelation(const Relation &relation);
 
-void DBMSImplementationForMarks::loadData(Relation const *large1,
-                                          Relation const *large2,  // NOLINT(bugprone-easily-swappable-parameters)
-                                          Relation const *small) {
+void DBMSImplementationForMarks::loadData(
+    Relation const *large1,
+    Relation const *large2,  // NOLINT(bugprone-easily-swappable-parameters)
+    Relation const *small) {
     //**** sort large1, large2 by `a` ****//
     int large1Size = getNumberOfTuplesInRelation(*large1);
     int large2Size = getNumberOfTuplesInRelation(*large2);
@@ -22,30 +23,34 @@ void DBMSImplementationForMarks::loadData(Relation const *large1,
         if (i < large1Size) {
             Tuple const &t = large1->at(i);
             // filter out nullptr
-            if (getAttributeValueType(t[0]) != 2 || getStringValue(t[0]) != nullptr) {
+            if (getAttributeValueType(t[0]) != 2 ||
+                getStringValue(t[0]) != nullptr) {
                 large1Tuples.emplace_back(&t);
             }
         }
         if (i < large2Size) {
             Tuple const &t = large2->at(i);
             // filter out nullptr
-            if (getAttributeValueType(t[0]) != 2 || getStringValue(t[0]) != nullptr) {
+            if (getAttributeValueType(t[0]) != 2 ||
+                getStringValue(t[0]) != nullptr) {
                 large2Tuples.emplace_back(&t);
             }
         }
     }
 
     if (large1Tuples.size() > 0) {
-        qsort(&large1Tuples[0], large1Tuples.size(), sizeof(Tuple *), compareTuples);
+        qsort(&large1Tuples[0], large1Tuples.size(), sizeof(Tuple *),
+              compareTuples);
     }
     if (large2Tuples.size() > 0) {
-        qsort(&large2Tuples[0], large2Tuples.size(), sizeof(Tuple *), compareTuples);
+        qsort(&large2Tuples[0], large2Tuples.size(), sizeof(Tuple *),
+              compareTuples);
     }
 
     //**** build hashtable for `small` ****//
 
     // preallocate memory and set to nullptr
-    smallHashTable = std::vector<Tuple const *>(small->size(), nullptr);
+    smallHashTable = std::vector<Tuple const *>(small->size() * 3, nullptr);
     // build the hashTable
     buildHashTable(smallHashTable, *small);
 
@@ -71,12 +76,15 @@ long DBMSImplementationForMarks::runQuery(long threshold) {
                 break;
             default:
                 // t1 and t2 matches, search small
-                //  TODO: use `searchHashTable` instead
-                for (Tuple const &t3 : *this->small) {
-                    if (compareAttributeValues(&t1[0], &t3[0]) == 0) {
-                        if (getLongValue(t1[1]) + getLongValue(t2[1]) + getLongValue(t3[1]) > threshold) {
-                            sum += getLongValue(t1[2]) * getLongValue(t2[2]) * getLongValue(t3[2]);
-                        }
+
+                std::vector<Tuple const *> matched =
+                    searchHashTable(smallHashTable, t1[0]);
+                for (Tuple const *t3 : matched) {
+                    if (getLongValue(t1[1]) + getLongValue(t2[1]) +
+                            getLongValue(t3->at(1)) >
+                        threshold) {
+                        sum += getLongValue(t1[2]) * getLongValue(t2[2]) *
+                               getLongValue(t3->at(2));
                     }
                 }
                 l1++;
@@ -88,11 +96,73 @@ long DBMSImplementationForMarks::runQuery(long threshold) {
     return sum;
 }
 
-// TODO: implement these functions
-void DBMSImplementationForMarks::buildHashTable(std::vector<Tuple const *> &hashTable, Relation const &relation) {}
-std::vector<Tuple const *> DBMSImplementationForMarks::searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue &key) {}
+size_t hashValue(AttributeValue const &value) {
+    if (getAttributeValueType(value) == 0) {
+        // long
+        long num = getLongValue(value);
+        num = ((num >> 16) ^ num) * 0x45d9f3b;
+        num = ((num >> 16) ^ num) * 0x45d9f3b;
+        return ((num >> 16) ^ num);
+    } else if (getAttributeValueType(value) == 1) {
+        unsigned long ul;
+        double d = getDoubleValue(value);
+        memcpy(&ul, &d, sizeof(double));
+        return ul & 0xfffff000;
+    }
+    // c-string
+    // Hashing based on Bezout's Identity
+    const char *str = getStringValue(value);
+    int prime_1 = 54059;
+    int prime_2 = 76963;
+    int prime_3 = 86969;
+    int hash_val = 37;
+    unsigned h = hash_val;
+    while (*str) {
+        hash_val = (hash_val * prime_1) ^ (str[0] * prime_2);
+        str++;
+    }
+    return hash_val;
+}
 
-// ************************** private helper functions ************************** //
+// TODO: implement these functions
+void DBMSImplementationForMarks::buildHashTable(
+    std::vector<Tuple const *> &hashTable, Relation const &relation) {
+    for (int i = 0; i < relation.size(); i++) {
+        Tuple const &t = relation[i];
+        if (getAttributeValueType(t[0]) == 2 &&
+            (getStringValue(t[0]) == nullptr)) {
+            continue;
+        }
+        size_t hv = hashValue(t[0]) % hashTable.size();
+        int step = 1;
+        while (hashTable[hv] != nullptr) {
+            hv = (hv + step) % hashTable.size();
+            step *= 2;  // TODO: if we remove this Test fails but BenchMark runs
+        }
+        hashTable[hv] = &t;
+    }
+}
+std::vector<Tuple const *> DBMSImplementationForMarks::searchHashTable(
+    std::vector<Tuple const *> &hashTable, AttributeValue const &key) {
+    std::vector<Tuple const *> result;
+    result.reserve(10);
+    size_t hv = hashValue(key) % hashTable.size();
+    int step = 1;
+    if (hashTable[hv] == nullptr) {
+        return {};
+    }
+    do {
+        if (compareAttributeValues(&hashTable[hv]->at(0), &key) == 0) {
+            result.emplace_back(hashTable[hv]);
+        }
+        hv = (hv + step) % hashTable.size();
+        step *= 2;  // TODO: if we remove this Test fails but BenchMark runs
+    } while (hashTable[hv] != nullptr);
+    return result;
+}
+
+// ************************** private helper functions
+// ************************** //
 
 /**
  * @brief compares strings lexicographically
@@ -105,8 +175,7 @@ int DBMSImplementationForMarks::compareStrings(const char *s1, const char *s2) {
     const unsigned char *p1 = (const unsigned char *)s1;
     const unsigned char *p2 = (const unsigned char *)s2;
 
-    while (*p1 && *p1 == *p2)
-        ++p1, ++p2;
+    while (*p1 && *p1 == *p2) ++p1, ++p2;
 
     return (*p1 > *p2) - (*p2 > *p1);
 }
@@ -116,13 +185,16 @@ int DBMSImplementationForMarks::compareStrings(const char *s1, const char *s2) {
  *
  * @param p1 pointer to AttributeValue
  * @param p2 pointer to AttributeValue
- * @return 0 if v1 == v2, returns <0 if p1 goes before p2, >0 if v2 goes before v1
+ * @return 0 if v1 == v2, returns <0 if p1 goes before p2, >0 if v2 goes before
+ * v1
  */
-int DBMSImplementationForMarks::compareAttributeValues(const void *p1, const void *p2) {
+int DBMSImplementationForMarks::compareAttributeValues(const void *p1,
+                                                       const void *p2) {
     AttributeValue &v1 = *(AttributeValue *)p1;
     AttributeValue &v2 = *(AttributeValue *)p2;
 
-    if (getAttributeValueType(v1) == getAttributeValueType(v2) && getAttributeValueType(v1) != 0) {
+    if (getAttributeValueType(v1) == getAttributeValueType(v2) &&
+        getAttributeValueType(v1) != 0) {
         if (getAttributeValueType(v1) == 1) {
             // double
             return ROUND(getDoubleValue(v1)) - ROUND(getDoubleValue(v2));
@@ -140,7 +212,8 @@ int DBMSImplementationForMarks::compareAttributeValues(const void *p1, const voi
  *
  * @param p1 pointer to a pointer to Tuple
  * @param p2 pointer to AttributeValue
- * @return 0 if t1 == t2, returns <0 if t1 goes before t2, >0 if t2 goes before t1
+ * @return 0 if t1 == t2, returns <0 if t1 goes before t2, >0 if t2 goes before
+ * t1
  */
 int DBMSImplementationForMarks::compareTuples(const void *p1, const void *p2) {
     Tuple *t1 = *(Tuple **)p1;

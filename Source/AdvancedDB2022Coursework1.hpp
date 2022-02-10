@@ -47,7 +47,7 @@ class DBMSImplementationForMarks {  // you may edit anything inside this class
     static int compareTuples(const void *p1, const void *p2);
 
     void buildHashTable(std::vector<Tuple const *> &hashTable, Relation const &relation);
-    std::vector<Tuple const *> searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue &key);
+    std::vector<Tuple const *> searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue const &key);
 };
 
 class DBMSImplementationForCompetition : public DBMSImplementationForMarks {
