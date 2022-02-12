@@ -9,7 +9,9 @@
 // YOU MAY NOT ADD ANY OTHER INCLUDES!!!
 using AttributeValue = std::variant<long, double, char const *>;
 using Tuple = std::vector<AttributeValue>;
+using Tuples = std::vector<Tuple const *>;
 using Relation = std::vector<Tuple>;
+using BC = std::array<long, 2>;
 
 /**
  * 0 islong, 1 is double, 2 is a c-string
@@ -45,9 +47,8 @@ inline size_t roundDouble(double x) { return (int)(x + 0.5); };
  * > 9;
  */
 class DBMSImplementationForMarks {  // you may edit anything inside this class
-    // but nothing else
-    std::vector<Tuple const *> large1Tuples, large2Tuples;
-    std::vector<Tuple const *> smallHashTable;
+                                    // but nothing else
+    std::vector<BC> join;
 
    public:
     void loadData(
@@ -62,10 +63,9 @@ class DBMSImplementationForMarks {  // you may edit anything inside this class
     static int compareAttributeValues(const void *p1, const void *p2);
     static int compareTuples(const void *p1, const void *p2);
 
-    void buildHashTable(std::vector<Tuple const *> &hashTable,
-                        Relation const &relation);
-    std::vector<Tuple const *> searchHashTable(
-        std::vector<Tuple const *> &hashTable, AttributeValue const &key);
+    void buildHashTable(Tuples &hashTable, Relation const &relation);
+    void searchHashTable(Tuples &hashTable, AttributeValue const &key,
+                         Tuples &result);
     size_t hashAttributeValue(AttributeValue const &value);
 };
 

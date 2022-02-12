@@ -5,7 +5,7 @@
 // TODO: remove these at the end
 void printAttributeValue(AttributeValue const &v);
 void printTuple(Tuple const &tuple);
-void printTuplePs(std::vector<Tuple const *> &tuple);
+void printTuplePs(Tuples &tuple);
 void printRelation(const Relation &relation);
 
 void DBMSImplementationForMarks::loadData(
@@ -15,15 +15,20 @@ void DBMSImplementationForMarks::loadData(
     //**** sort large1, large2 and store the pointers ****  //
     const size_t large1Size = getNumberOfTuplesInRelation(*large1);
     const size_t large2Size = getNumberOfTuplesInRelation(*large2);
-    large1Tuples.reserve(large1Size);
-    large2Tuples.reserve(large2Size);
+
+    Tuples sortedLarge1;
+    Tuples sortedLarge2;
+    sortedLarge1.reserve(large1Size);
+    sortedLarge2.reserve(large2Size);
+    join.reserve(small->size());
+
     for (size_t i = 0; i < max<size_t>(large1Size, large2Size); i++) {
         if (i < large1Size) {
             Tuple const &t = large1->at(i);
             // filter out nullptr
             if (getAttributeValueType(t[0]) != 2 ||
                 getStringValue(t[0]) != nullptr) {
-                large1Tuples.emplace_back(&t);
+                sortedLarge1.push_back(&t);
             }
         }
         if (i < large2Size) {
@@ -31,36 +36,30 @@ void DBMSImplementationForMarks::loadData(
             // filter out nullptr
             if (getAttributeValueType(t[0]) != 2 ||
                 getStringValue(t[0]) != nullptr) {
-                large2Tuples.emplace_back(&t);
+                sortedLarge2.push_back(&t);
             }
         }
     }
-
-    if (large1Tuples.size() > 0) {
-        qsort(&large1Tuples[0], large1Tuples.size(), sizeof(Tuple *),
+    if (sortedLarge1.size() > 0) {
+        qsort(&sortedLarge1[0], sortedLarge1.size(), sizeof(Tuple *),
               compareTuples);
     }
-    if (large2Tuples.size() > 0) {
-        qsort(&large2Tuples[0], large2Tuples.size(), sizeof(Tuple *),
+    if (sortedLarge2.size() > 0) {
+        qsort(&sortedLarge2[0], sortedLarge2.size(), sizeof(Tuple *),
               compareTuples);
     }
 
     //**** build hashtable for `small` ****//
-    // preallocate memory and set to nullptr
-    smallHashTable = std::vector<Tuple const *>(small->size() * 8, nullptr);
-    // build the hashTable
+    Tuples smallHashTable(small->size() * 8, nullptr);
     buildHashTable(smallHashTable, *small);
-}
 
-long DBMSImplementationForMarks::runQuery(long threshold) {
-    int sum = 0;
+    //** join all three relations **//
     size_t l1 = 0;
     size_t l2 = 0;
-
     // iterate through sorted `large1` and `large2`
-    while (l1 < large1Tuples.size() && l2 < large2Tuples.size()) {
-        Tuple const &t1 = *large1Tuples[l1];
-        Tuple const &t2 = *large2Tuples[l2];
+    while (l1 < sortedLarge1.size() && l2 < sortedLarge2.size()) {
+        Tuple const &t1 = *sortedLarge1[l1];
+        Tuple const &t2 = *sortedLarge2[l2];
 
         switch (compareAttributeValues(&t1[0], &t2[0])) {
             case -1:
@@ -70,27 +69,34 @@ long DBMSImplementationForMarks::runQuery(long threshold) {
                 l2++;
                 break;
             default:
+                // add to `join` when matched
+                Tuples matches;
+                searchHashTable(smallHashTable, t1[0], matches);
 
-                // search into the hash table when matched
-                std::vector<Tuple const *> matched =
-                    searchHashTable(smallHashTable, t1[0]);
-
-                for (Tuple const *t3 : matched) {
-                    if (getLongValue(t1[1]) + getLongValue(t2[1]) +
-                            getLongValue(t3->at(1)) >
-                        threshold) {
-                        sum += getLongValue(t1[2]) * getLongValue(t2[2]) *
-                               getLongValue(t3->at(2));
-                    }
+                for (Tuple const *t3 : matches) {
+                    long bs = getLongValue(t1[1]) + getLongValue(t2[1]) +
+                              getLongValue(t3->at(1));
+                    long cs = getLongValue(t1[2]) * getLongValue(t2[2]) *
+                              getLongValue(t3->at(2));
+                    join.push_back({bs, cs});
                 }
                 l1++;
                 l2++;
                 break;
         }
     }
+}
 
+long DBMSImplementationForMarks::runQuery(long threshold) {
+    long sum = 0;
+    for (BC bc : join) {
+        if (bc[0] > threshold) {
+            sum += bc[1];
+        }
+    }
     return sum;
 }
+
 /**
  * @brief build a hash table for relation, assumes the size of `hashTable`
  *        is much larger than that of `relation`
@@ -98,8 +104,8 @@ long DBMSImplementationForMarks::runQuery(long threshold) {
  * @param hashTable
  * @param relation
  */
-void DBMSImplementationForMarks::buildHashTable(
-    std::vector<Tuple const *> &hashTable, Relation const &relation) {
+void DBMSImplementationForMarks::buildHashTable(Tuples &hashTable,
+                                                Relation const &relation) {
     for (size_t i = 0; i < relation.size(); i++) {
         Tuple const &t = relation[i];
         if (getAttributeValueType(t[0]) == 2 &&
@@ -117,25 +123,24 @@ void DBMSImplementationForMarks::buildHashTable(
 }
 
 /**
- * @brief Quadratic probe into the hashTable given the key
+ * @brief Quadratic probe into the hashTable given the key and add to `result`
  *
  * @param hashTable
  * @param key
- * @return  vector of matching pointers to the tuple
+ * @param result
  */
-std::vector<Tuple const *> DBMSImplementationForMarks::searchHashTable(
-    std::vector<Tuple const *> &hashTable, AttributeValue const &key) {
-    std::vector<Tuple const *> result;
+void DBMSImplementationForMarks::searchHashTable(Tuples &hashTable,
+                                                 AttributeValue const &key,
+                                                 Tuples &result) {
     size_t index = hashAttributeValue(key) % hashTable.size();
     size_t d = 1;
     while (hashTable[index] != nullptr) {
         if (compareAttributeValues(&hashTable[index]->at(0), &key) == 0) {
-            result.emplace_back(hashTable[index]);
+            result.push_back(hashTable[index]);
         }
         index = (index + d) % hashTable.size();
         d *= 2;
     }
-    return result;
 }
 
 // *************** private helper functions *************** //
@@ -257,7 +262,7 @@ void printTuple(Tuple const &tuple) {
     std::cout << std::endl;
 }
 
-void printTuplePs(std::vector<Tuple const *> &tuple) {
+void printTuplePs(Tuples &tuple) {
     std::cout << "=======================" << std::endl;
     for (size_t i = 0; i < tuple.size(); i++) {
         if (tuple[i] == nullptr) {
