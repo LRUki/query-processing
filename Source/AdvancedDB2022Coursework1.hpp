@@ -14,12 +14,28 @@ using Relation = std::vector<Tuple>;
 /**
  * 0 islong, 1 is double, 2 is a c-string
  */
-inline size_t getAttributeValueType(AttributeValue const &value) { return value.index(); }
-inline long getLongValue(AttributeValue const &value) { return std::get<long>(value); }
-inline double getDoubleValue(AttributeValue const &value) { return std::get<double>(value); }
-inline char const *getStringValue(AttributeValue const &value) { return std::get<char const *>(value); }
+inline size_t getAttributeValueType(AttributeValue const &value) {
+    return value.index();
+}
+inline long getLongValue(AttributeValue const &value) {
+    return std::get<long>(value);
+}
+inline double getDoubleValue(AttributeValue const &value) {
+    return std::get<double>(value);
+}
+inline char const *getStringValue(AttributeValue const &value) {
+    return std::get<char const *>(value);
+}
 inline size_t getNumberOfValuesInTuple(Tuple const &t) { return t.size(); }
-inline size_t getNumberOfTuplesInRelation(Relation const &t) { return t.size(); }
+inline size_t getNumberOfTuplesInRelation(Relation const &t) {
+    return t.size();
+}
+template <class T>
+inline T max(T a, T b) {
+    return a > b ? a : b;
+}
+
+inline size_t roundDouble(double x) { return (int)(x + 0.5); };
 
 /**
  * DBMS shall implement the following query in the query function:
@@ -32,12 +48,12 @@ class DBMSImplementationForMarks {  // you may edit anything inside this class
     // but nothing else
     std::vector<Tuple const *> large1Tuples, large2Tuples;
     std::vector<Tuple const *> smallHashTable;
-    Relation const *small;  // TODO: remove after hash table implemented
 
    public:
-    void loadData(Relation const *large1,
-                  Relation const *large2,  // NOLINT(bugprone-easily-swappable-parameters)
-                  Relation const *small);  // NOLINT(bugprone-easily-swappable-parameters)
+    void loadData(
+        Relation const *large1,
+        Relation const *large2,  // NOLINT(bugprone-easily-swappable-parameters)
+        Relation const *small);  // NOLINT(bugprone-easily-swappable-parameters)
 
     long runQuery(long threshold = 9);
 
@@ -46,14 +62,18 @@ class DBMSImplementationForMarks {  // you may edit anything inside this class
     static int compareAttributeValues(const void *p1, const void *p2);
     static int compareTuples(const void *p1, const void *p2);
 
-    void buildHashTable(std::vector<Tuple const *> &hashTable, Relation const &relation);
-    std::vector<Tuple const *> searchHashTable(std::vector<Tuple const *> &hashTable, AttributeValue const &key);
+    void buildHashTable(std::vector<Tuple const *> &hashTable,
+                        Relation const &relation);
+    std::vector<Tuple const *> searchHashTable(
+        std::vector<Tuple const *> &hashTable, AttributeValue const &key);
+    size_t hashAttributeValue(AttributeValue const &value);
 };
 
 class DBMSImplementationForCompetition : public DBMSImplementationForMarks {
    public:
     static constexpr char const *teamName =
-        nullptr;  // set this to your team name if you mean to compete
+        "qUerY_ProCeSSinG_iS_FuN";  // set this to your team name if you mean to
+                                    // compete
 };
 
 #endif /* ADVANCEDDB2022COURSEWORK1_H */
