@@ -16,8 +16,8 @@ void DBMSImplementationForMarks::loadData(
     const size_t large1Size = getNumberOfTuplesInRelation(*large1);
     const size_t large2Size = getNumberOfTuplesInRelation(*large2);
 
-    Tuples sortedLarge1;
-    Tuples sortedLarge2;
+    DirectTuples sortedLarge1;
+    DirectTuples sortedLarge2;
     sortedLarge1.reserve(large1Size);
     sortedLarge2.reserve(large2Size);
     join.reserve(small->size());
@@ -28,7 +28,7 @@ void DBMSImplementationForMarks::loadData(
             // filter out nullptr
             if (getAttributeValueType(t[0]) != 2 ||
                 getStringValue(t[0]) != nullptr) {
-                sortedLarge1.push_back(&t);
+                sortedLarge1.push_back(t);
             }
         }
         if (i < large2Size) {
@@ -36,7 +36,7 @@ void DBMSImplementationForMarks::loadData(
             // filter out nullptr
             if (getAttributeValueType(t[0]) != 2 ||
                 getStringValue(t[0]) != nullptr) {
-                sortedLarge2.push_back(&t);
+                sortedLarge2.push_back(t);
             }
         }
     }
@@ -50,7 +50,7 @@ void DBMSImplementationForMarks::loadData(
     }
 
     //**** build hashtable for `small` ****//
-    Tuples smallHashTable(small->size() * 8, nullptr);
+    DirectTuples smallHashTable(small->size() * 8, DEFAULT);
     buildHashTable(smallHashTable, *small);
 
     //** join all three relations **//
@@ -58,8 +58,8 @@ void DBMSImplementationForMarks::loadData(
     size_t l2 = 0;
     // iterate through sorted `large1` and `large2`
     while (l1 < sortedLarge1.size() && l2 < sortedLarge2.size()) {
-        Tuple const &t1 = *sortedLarge1[l1];
-        Tuple const &t2 = *sortedLarge2[l2];
+        Tuple const &t1 = sortedLarge1[l1];
+        Tuple const &t2 = sortedLarge2[l2];
 
         switch (compareAttributeValues(&t1[0], &t2[0])) {
             case -1:
@@ -70,14 +70,14 @@ void DBMSImplementationForMarks::loadData(
                 break;
             default:
                 // add to `join` when matched
-                Tuples matches;
+                DirectTuples matches;
                 searchHashTable(smallHashTable, t1[0], matches);
 
-                for (Tuple const *t3 : matches) {
+                for (Tuple const t3 : matches) {
                     long bs = getLongValue(t1[1]) + getLongValue(t2[1]) +
-                              getLongValue(t3->at(1));
+                              getLongValue(t3.at(1));
                     long cs = getLongValue(t1[2]) * getLongValue(t2[2]) *
-                              getLongValue(t3->at(2));
+                              getLongValue(t3.at(2));
                     join.push_back({bs, cs});
                 }
                 l1++;
@@ -104,7 +104,7 @@ long DBMSImplementationForMarks::runQuery(long threshold) {
  * @param hashTable
  * @param relation
  */
-void DBMSImplementationForMarks::buildHashTable(Tuples &hashTable,
+void DBMSImplementationForMarks::buildHashTable(DirectTuples &hashTable,
                                                 Relation const &relation) {
     for (size_t i = 0; i < relation.size(); i++) {
         Tuple const &t = relation[i];
@@ -114,11 +114,11 @@ void DBMSImplementationForMarks::buildHashTable(Tuples &hashTable,
         }
         size_t index = hashAttributeValue(t[0]) % hashTable.size();
         size_t d = 1;
-        while (hashTable[index] != nullptr) {
+        while (hashTable[index] != DEFAULT) {
             index = (index + d) % hashTable.size();
             d *= 2;
         }
-        hashTable[index] = &t;
+        hashTable[index] = t;
     }
 }
 
@@ -129,13 +129,13 @@ void DBMSImplementationForMarks::buildHashTable(Tuples &hashTable,
  * @param key
  * @param result
  */
-void DBMSImplementationForMarks::searchHashTable(Tuples &hashTable,
+void DBMSImplementationForMarks::searchHashTable(DirectTuples &hashTable,
                                                  AttributeValue const &key,
-                                                 Tuples &result) {
+                                                 DirectTuples &result) {
     size_t index = hashAttributeValue(key) % hashTable.size();
     size_t d = 1;
-    while (hashTable[index] != nullptr) {
-        if (compareAttributeValues(&hashTable[index]->at(0), &key) == 0) {
+    while (hashTable[index] != DEFAULT) {
+        if (compareAttributeValues(&hashTable[index].at(0), &key) == 0) {
             result.push_back(hashTable[index]);
         }
         index = (index + d) % hashTable.size();

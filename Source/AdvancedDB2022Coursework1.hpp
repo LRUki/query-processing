@@ -10,6 +10,7 @@
 using AttributeValue = std::variant<long, double, char const *>;
 using Tuple = std::vector<AttributeValue>;
 using Tuples = std::vector<Tuple const *>;
+using DirectTuples = std::vector<Tuple>;
 using Relation = std::vector<Tuple>;
 using BC = std::array<long, 2>;
 
@@ -49,6 +50,7 @@ inline size_t roundDouble(double x) { return (int)(x + 0.5); };
 class DBMSImplementationForMarks {  // you may edit anything inside this class
                                     // but nothing else
     std::vector<BC> join;
+    Tuple DEFAULT{ -1L, -1L, -1L };
 
    public:
     void loadData(
@@ -63,9 +65,9 @@ class DBMSImplementationForMarks {  // you may edit anything inside this class
     static int compareAttributeValues(const void *p1, const void *p2);
     static int compareTuples(const void *p1, const void *p2);
 
-    void buildHashTable(Tuples &hashTable, Relation const &relation);
-    void searchHashTable(Tuples &hashTable, AttributeValue const &key,
-                         Tuples &result);
+    void buildHashTable(DirectTuples &hashTable, Relation const &relation);
+    void searchHashTable(DirectTuples &hashTable, AttributeValue const &key,
+                         DirectTuples &result);
     size_t hashAttributeValue(AttributeValue const &value);
 };
 
