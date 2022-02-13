@@ -1,0 +1,14 @@
+The loadData function is where we join all the three tables based on all three of them having the same value in the first column. 
+We do this by first sorting both large1 and large2 using the inbuilt 'qsort' function. This provides us with two sorted tables to then perform a merge sort.
+Then we build a hash table of all the values in the small table. we do this by hashing the first column and using that as a key into the hash table.
+Whenever we have a match in values we will use the first column of those matched tuples as a key into the hash table to see if small contains a match. 
+If so we take the sum of the second column of all three tuples and the product of the third into an array to be using in runQuery.
+runQuery will then run through the vector of matches and compare the sum to the given threshold. If the condition is met, the product is added to the running total to be returned.
+
+We chose to join large1 and large2 through a sort-merge as they are both equally sized, and hashed the small table as it results in a smaller hash table that can be loaded into main memory.
+From this our order ended up being to join both large1 and large2 first and then joining small whenever a match was found.
+We decided to do all three in one as it meant we did not have to store a preliminary joined table and then loop over that table when finished, saving space and time.
+
+For the hash table, we tried a different sized tables to test different load factors and found that a load factor of 0.125 gave the best performance with the tradeoff of having a larger table.
+We then implemented quadratic probing as opposed to linear probing so that similar values would not cause too many hash collisions.
+To tune these two we simply ran benchmarks with different combinations to find one that produced good results.
